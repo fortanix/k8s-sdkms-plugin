@@ -1,4 +1,4 @@
-module bitbucket.org/fortanix/k8s-sdkms-plugin
+module github.com/fortanix/k8s-sdkms-plugin
 
 go 1.13
 
