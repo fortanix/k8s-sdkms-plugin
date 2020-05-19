@@ -51,7 +51,7 @@ The KMS plugin expects its configuration in JSON format. Here is an example `k8s
 if you don't need to rotate the encryption key, replace the entry
 `key_name` with `key_id` in the config file. Here is an example:
 
-```json
+```js
 {
   // ...
   "key_id": "4b3d13a8-2c3a-47dc-8779-311dad6843a2",
