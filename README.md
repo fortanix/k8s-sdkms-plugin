@@ -69,7 +69,7 @@ Docker container needs:
 - Plugin configuration file, e.g. `/etc/fortanix/k8s-sdkms-plugin.json`
 - A shared directory to store the Unix domain socket, e.g. `/var/run/kms-plugin`
 
-#### Delpoy the plugin using Docker
+#### Deploy the plugin using Docker
 
 A prebuilt Docker image containing this KMS plugin is available on Docker Hub
 at `fortanix/k8s-sdkms-plugin:$TAG` where `TAG` refers to a published git tag
