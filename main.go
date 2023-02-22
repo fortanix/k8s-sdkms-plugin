@@ -102,7 +102,7 @@ func (p pluginConfig) validate() error {
 	defer client.TerminateSession(ctx)
 
 	descriptor := p.makeSobjectDescriptor()
-	key, err := client.GetSobject(ctx, sdkms.GetSobjectParams{View: sdkms.SobjectEncodingJson}, *descriptor)
+	key, err := client.GetSobject(ctx, &sdkms.GetSobjectParams{View: sdkms.SobjectEncodingJson}, *descriptor)
 	if err != nil {
 		return fmt.Errorf("invalid key: %v", err)
 	}
