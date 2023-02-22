@@ -1,24 +1,24 @@
-# Kubernetes KMS Plugin for Self-Defending KMS
+# Kubernetes KMS Plugin for Fortanix DSM
 
 This repository contains an implementation of [Kubernetes KMS Plugin] for
-[Self-Defending KMS].
+[Fortanix DSM].
 
 ## General Usage
 
 At a high level you need to follow these steps to encrypt Kubernetes secrets
-with key(s) stored in Self-Defending KMS:
+with key(s) stored in Fortanix DSM:
 
-1. Setup encryption key and app in Self-Defending KMS
+1. Setup encryption key and app in Fortanix DSM
 2. Create a configuration file for the KMS plugin
 3. Deploy the KMS plugin on the Kubernetes master nodes
 4. Setup Kubernetes encryption configuration
 
-### 1. Setup encryption key and app in Self-Defending KMS
+### 1. Setup encryption key and app in Fortanix DSM
 
-Create an AES key in Self-Defending KMS. This key will be used by the KMS
+Create an AES key in Fortanix DSM. This key will be used by the KMS
 plugin to encrypt/decrypt Kubernetes secrets.
 
-Create an app with access to the encryption key in Self-Defending KMS. Make
+Create an app with access to the encryption key in Fortanix DSM. Make
 sure the app is allowed to perform encrypt and decrypt operations on the
 encryption key. Use the API Key authentication method for this app.
 
@@ -26,12 +26,12 @@ encryption key. Use the API Key authentication method for this app.
 
 The KMS plugin needs the following configuration values:
 
-- Self-Defending KMS endpoint URL, e.g. https://sdkms.fortanix.com
+- Fortanix DSM endpoint URL, e.g. https://sdkms.fortanix.com
 - API Key
 - Name or UUID of the encryption key
 - Unix domain socket path for its gRPC endpoint
 
-This plugin allows for rotation of the encryption key in Self-Defending KMS
+This plugin allows for rotation of the encryption key in Fortanix DSM
 without the need to change Kubernetes encryption configuration. You would need
 to specify the encryption key **by name** to enable this feature. If you don't
 want to use this feature, then you should specify the encryption key by its
@@ -190,7 +190,7 @@ this project or the open source license(s) involved.
 This project is primarily distributed under the terms of the Mozilla Public License (MPL) 2.0, see [LICENSE](./LICENSE) for details.
 
 [Kubernetes KMS Plugin]: https://kubernetes.io/docs/tasks/administer-cluster/kms-provider/
-[Self-Defending KMS]: https://fortanix.com/products/sdkms/
+[Fortanix DSM]: https://www.fortanix.com/platform/data-security-manager
 [Static Pods]: https://kubernetes.io/docs/tasks/configure-pod-container/static-pod/
 [Encrypting Secret Data at Rest]: https://kubernetes.io/docs/tasks/administer-cluster/encrypt-data/
 [Rancher]: https://rancher.com/
