@@ -78,7 +78,7 @@ of this repo.
 Pull the Docker image on Kubernetes master nodes:
 
 ```
-$ docker pull "fortanix/k8s-sdkms-plugin:0.1.0"
+$ docker pull "fortanix/k8s-sdkms-plugin:0.2.0"
 ```
 
 Then start the container:
@@ -87,7 +87,7 @@ Then start the container:
 $ docker run -d -v /var/run/kms-plugin:/var/run/kms-plugin \
     -v /etc/fortanix/k8s-sdkms-plugin.json:/etc/fortanix/k8s-sdkms-plugin.json \
     --name sdkms-plugin \
-    fortanix/k8s-sdkms-plugin:0.1.0
+    fortanix/k8s-sdkms-plugin:0.2.0
 ```
 
 #### Deploy the plugin using Static Pods
@@ -102,7 +102,7 @@ metadata:
 spec:
   containers:
   - name: k8s-sdkms-plugin
-    image: fortanix/k8s-sdkms-plugin:0.1.0
+    image: fortanix/k8s-sdkms-plugin:0.2.0
     volumeMounts:
     - name: socket-dir
       mountPath: /var/run/kms-plugin
