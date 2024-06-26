@@ -87,7 +87,7 @@ Then start the container:
 $ docker run -d -v /var/run/kms-plugin:/var/run/kms-plugin \
     -v /etc/fortanix/k8s-sdkms-plugin.json:/etc/fortanix/k8s-sdkms-plugin.json \
     --name sdkms-plugin \
-    fortanix/k8s-sdkms-plugin:0.2.0
+    fortanix/k8s-sdkms-plugin:0.3.0
 ```
 
 #### Deploy the plugin using Static Pods
@@ -102,7 +102,7 @@ metadata:
 spec:
   containers:
   - name: k8s-sdkms-plugin
-    image: fortanix/k8s-sdkms-plugin:0.2.0
+    image: fortanix/k8s-sdkms-plugin:0.3.0
     volumeMounts:
     - name: socket-dir
       mountPath: /var/run/kms-plugin
@@ -134,7 +134,7 @@ resources:
   - kms:
       name: sdkms-plugin
       endpoint: unix:///var/run/kms-plugin/socket
-      cachesize: 100
+      apiVersion: v2
       timeout: 3s
   - identity: {}
 ```
