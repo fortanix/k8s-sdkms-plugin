@@ -78,7 +78,7 @@ of this repo.
 Pull the Docker image on Kubernetes master nodes:
 
 ```
-$ docker pull "fortanix/k8s-sdkms-plugin:0.2.0"
+$ docker pull "fortanix/k8s-sdkms-plugin:0.3.0"
 ```
 
 Then start the container:
@@ -152,6 +152,87 @@ Kubernetes to encrypt and decrypt secrets. Please refer to
 If you are using [Rancher] to deploy your Kubernetes cluster, you can follow
 the instructions in [rancher-guide](./rancher-guide.md) to apply the encryption
 configuration.
+
+#### Sample example to update kube-apiserver
+
+Save the new encryption config file to `/etc/kubernetes/enc/encryption.yaml` on the control-plane node.
+
+Edit the manifest for the kube-apiserver static pod: `/etc/kubernetes/manifests/kube-apiserver.yaml` so that it is similar to:
+
+```yaml
+---
+#
+# This is a fragment of a manifest for a static Pod.
+# Check whether this is correct for your cluster and for your API server.
+#
+apiVersion: v1
+kind: Pod
+metadata:
+  annotations:
+    kubeadm.kubernetes.io/kube-apiserver.advertise-address.endpoint: 10.20.30.40:443
+  labels:
+    app.kubernetes.io/component: kube-apiserver
+    tier: control-plane
+  name: kube-apiserver
+  namespace: kube-system
+spec:
+  containers:
+  - command:
+    - kube-apiserver
+    ...
+    - --encryption-provider-config=/etc/kubernetes/enc/encryption.yaml  # add this line
+    volumeMounts:
+    ...
+    - name: enc                           # add this line
+      mountPath: /etc/kubernetes/enc      # add this line
+      readOnly: true                      # add this line
+    - name: kms-plugin                    # add this line  
+      mountPath: /var/run/kms-plugin      # add this line
+      readOnly: false                     # add this line
+    ...
+  volumes:
+  ...
+  - name: enc                             # add this line
+    hostPath:                             # add this line
+      path: /etc/kubernetes/enc           # add this line
+      type: DirectoryOrCreate             # add this line
+  - name: kms-plugin                      # add this line
+    hostPath:                             # add this line
+      path: /var/run/kms-plugin           # add this line
+      type: DirectoryOrCreate             # add this line
+  ...
+
+```
+
+Restart your API server.
+
+### Testing
+
+Create a new secret called test-secret in the default namespace:
+```
+$ kubectl create secret generic test-secret -n default --from-literal=mykey=mydata
+```
+
+Using the etcdctl command line tool, read that secret out of etcd:
+```
+$ ETCDCTL_API=3 etcdctl \
+   --cacert=/etc/kubernetes/pki/etcd/ca.crt   \
+   --cert=/etc/kubernetes/pki/etcd/server.crt \
+   --key=/etc/kubernetes/pki/etcd/server.key  \
+   get /registry/secrets/default/test-secret | hexdump -C
+```
+
+Verify the stored secret is prefixed with `k8s:enc:kms:v2:sdkms-plugin` which indicates that sdkm-plugin has encrypted the resulting data
+
+Verify the secret is correctly decrypted when retrieved via the API:
+```
+$ kubectl get secret test-secret -n default -o yaml
+```
+
+Encrypt secret that were created before `k8s-sdkms-plugin` deployment
+```
+$ kubectl get secrets --all-namespaces -o json | kubectl replace -f -
+```
 
 # Contributing
 
