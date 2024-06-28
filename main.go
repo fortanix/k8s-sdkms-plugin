@@ -2,6 +2,7 @@ package main
 
 import (
 	"context"
+	"crypto/sha256"
 	"encoding/json"
 	"errors"
 	"flag"
@@ -22,9 +23,10 @@ import (
 const (
 	defaultConfigPath = "/etc/fortanix/k8s-sdkms-plugin.json"
 	netProtocol       = "unix"
-	version           = "v1beta1"
+	version           = "v2beta1"
+	healthz           = "ok"
 	runtimeName       = "k8s-sdkms-plugin"
-	runtimeVersion    = "0.1.0"
+	runtimeVersion    = "0.3.0"
 )
 
 func main() {
@@ -46,6 +48,7 @@ func main() {
 		log.Fatalf("Failed to start gRPC server: %v", err)
 	}
 
+	log.Printf("version: %v, runtime: %v (%v)", version, runtimeName, runtimeVersion)
 	log.Println("Service started successfully.")
 
 	sigChan := make(chan os.Signal, 1)
@@ -102,7 +105,8 @@ func (p pluginConfig) validate() error {
 	defer client.TerminateSession(ctx)
 
 	descriptor := p.makeSobjectDescriptor()
-	key, err := client.GetSobject(ctx, &sdkms.GetSobjectParams{View: sdkms.SobjectEncodingJson}, *descriptor)
+	encoding := sdkms.SobjectEncodingJson
+	key, err := client.GetSobject(ctx, &sdkms.GetSobjectParams{View: &encoding}, *descriptor)
 	if err != nil {
 		return fmt.Errorf("invalid key: %v", err)
 	}
@@ -131,6 +135,24 @@ func (p pluginConfig) makeSobjectDescriptor() *sdkms.SobjectDescriptor {
 type kmsServer struct {
 	server *grpc.Server
 	config pluginConfig
+	hash   string
+}
+
+// Hash of endPoint, KeyID and KeyName
+func (p pluginConfig) hash() string {
+	h := sha256.New()
+
+	if p.SdkmsEndpoint != nil {
+		h.Write([]byte(*p.SdkmsEndpoint))
+	}
+	if p.KeyID != nil {
+		h.Write([]byte(*p.KeyID))
+	}
+	if p.KeyName != nil {
+		h.Write([]byte(*p.KeyName))
+	}
+
+	return fmt.Sprintf("%x", h.Sum(nil))
 }
 
 func startServer(config pluginConfig) (*kmsServer, error) {
@@ -147,6 +169,7 @@ func startServer(config pluginConfig) (*kmsServer, error) {
 	s := &kmsServer{
 		config: config,
 		server: server,
+		hash:   config.hash(),
 	}
 	RegisterKeyManagementServiceServer(server, s)
 	go server.Serve(listener)
@@ -161,9 +184,9 @@ type wrappedData struct {
 	Tag     []byte
 }
 
-func (s *kmsServer) Version(ctx context.Context, request *VersionRequest) (*VersionResponse, error) {
-	log.Printf("version: %v, runtime: %v (%v)", version, runtimeName, runtimeVersion)
-	return &VersionResponse{Version: version, RuntimeName: runtimeName, RuntimeVersion: runtimeVersion}, nil
+func (s *kmsServer) Status(ctx context.Context, request *StatusRequest) (*StatusResponse, error) {
+	logRequest("Status", fmt.Sprintf("healtcheck status is %v", healthz), nil)
+	return &StatusResponse{Version: version, Healthz: healthz, KeyId: s.hash}, nil
 }
 
 func (s *kmsServer) Encrypt(ctx context.Context, request *EncryptRequest) (*EncryptResponse, error) {
@@ -184,7 +207,7 @@ func (s *kmsServer) encrypt(ctx context.Context, request *EncryptRequest) (*Encr
 	resp, err := client.Encrypt(ctx, sdkms.EncryptRequest{
 		Key:    s.config.makeSobjectDescriptor(),
 		Alg:    sdkms.AlgorithmAes,
-		Plain:  request.Plain,
+		Plain:  request.Plaintext,
 		Mode:   sdkms.CryptModeSymmetric(sdkms.CipherModeGcm),
 		TagLen: &tagLen,
 	})
@@ -201,16 +224,19 @@ func (s *kmsServer) encrypt(ctx context.Context, request *EncryptRequest) (*Encr
 	if err != nil {
 		return nil, "", fmt.Errorf("failed to serialize encrypt response: %v", err)
 	}
-	return &EncryptResponse{Cipher: data}, fmt.Sprintf("plain: %v bytes, cipher: %v bytes", len(request.Plain), len(data)), nil
+	return &EncryptResponse{Ciphertext: data, KeyId: s.hash}, fmt.Sprintf("plain: %v bytes, cipher: %v bytes", len(request.Plaintext), len(data)), nil
 }
 
 func (s *kmsServer) decrypt(ctx context.Context, request *DecryptRequest) (*DecryptResponse, string, error) {
 	var data wrappedData
-	if err := cbor.Unmarshal(request.Cipher, &data); err != nil {
+	if err := cbor.Unmarshal(request.Ciphertext, &data); err != nil {
 		return nil, "", fmt.Errorf("failed to deserialize wrapped cipher data: %v", err)
 	}
 	if data.Version != 1 {
 		return nil, "", fmt.Errorf("unknown version for wrapped cipher data: %v", data.Version)
+	}
+	if request.KeyId != s.hash {
+		return nil, "", fmt.Errorf("KeyId does not match. Expected: %v, found: %v", request.KeyId, s.hash)
 	}
 	client := s.config.makeClient()
 	alg := sdkms.AlgorithmAes
@@ -225,7 +251,7 @@ func (s *kmsServer) decrypt(ctx context.Context, request *DecryptRequest) (*Decr
 	if err != nil {
 		return nil, "", err
 	}
-	return &DecryptResponse{Plain: resp.Plain}, fmt.Sprintf("cipher: %v bytes, plain: %v bytes", len(request.Cipher), len(resp.Plain)), nil
+	return &DecryptResponse{Plaintext: resp.Plain}, fmt.Sprintf("cipher: %v bytes, plain: %v bytes", len(request.Ciphertext), len(resp.Plain)), nil
 }
 
 func logRequest(kind string, msg string, err error) {

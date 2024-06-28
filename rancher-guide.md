@@ -68,7 +68,7 @@ Change your cluster settings to look like the following:
               - kms:
                   name: sdkms-encryption-provider
                   endpoint: unix:///var/run/kms-plugin/socket
-                  cachesize: 100
+                  apiVersion: v2
                   timeout: 3s
               - identity: {}
 ```
